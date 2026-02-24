@@ -867,27 +867,59 @@ window.addEventListener('mouseup', () => {
   document.getElementById('zone-r').classList.remove('on');
 });
 
+let touchStartPos = null;
+let touchStartTime = 0;
+
 canvas.addEventListener('touchstart', e => {
   e.preventDefault();
   const t = e.touches[0];
   const mx = t.clientX, my = t.clientY;
+  touchStartPos = { x: mx, y: my };
+  touchStartTime = Date.now();
   for (let i = 0; i < balls.length; i++) {
     const b = balls[i];
     if (!b.visible) continue;
     const dx = mx - b.body.position.x, dy = my - b.body.position.y;
-    if (dx*dx + dy*dy < b.r * b.r * 1.6) { dragState = { idx: i }; break; }
+    if (dx*dx + dy*dy < b.r * b.r * 2.25) { dragState = { idx: i }; break; }
   }
 }, { passive: false });
 
 canvas.addEventListener('touchmove', e => {
   e.preventDefault();
+  const t = e.touches[0];
+  if (dragState) {
+    const ball = getDragBall();
+    if (ball && ball.visible) {
+      Body.setPosition(ball.body, { x: t.clientX, y: t.clientY });
+      Body.setVelocity(ball.body, { x: 0, y: 0 });
+    }
+  }
   updateZones();
 }, { passive: false });
 
 canvas.addEventListener('touchend', e => {
   e.preventDefault();
-  checkDoneRelease();
+  const tc = e.changedTouches[0];
+  const isTap = touchStartPos && tc &&
+    Date.now() - touchStartTime < 250 &&
+    Math.hypot(tc.clientX - touchStartPos.x, tc.clientY - touchStartPos.y) < 14;
+
+  if (isTap) {
+    const tx = tc.clientX, ty = tc.clientY;
+    let found = -1;
+    for (let i = balls.length - 1; i >= 0; i--) {
+      const b = balls[i];
+      if (!b.visible) continue;
+      const dx = tx - b.body.position.x, dy = ty - b.body.position.y;
+      if (dx*dx + dy*dy < b.r * b.r * 1.8) { found = i; break; }
+    }
+    selectedIdx = found === selectedIdx ? -1 : found;
+  } else {
+    checkDoneRelease();
+  }
+
   dragState = null;
+  touchStartPos = null;
   document.getElementById('zone-l').classList.remove('on');
   document.getElementById('zone-r').classList.remove('on');
 }, { passive: false });
